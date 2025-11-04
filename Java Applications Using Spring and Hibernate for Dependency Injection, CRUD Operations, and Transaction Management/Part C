@@ -1,0 +1,182 @@
+// Main.java
+import org.hibernate.*;
+import org.hibernate.cfg.Configuration;
+import org.springframework.context.annotation.*;
+import org.springframework.orm.hibernate5.*;
+import org.springframework.transaction.annotation.*;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import jakarta.persistence.*;
+import java.util.List;
+
+// --- ENTITY CLASSES ---
+
+@Entity
+@Table(name = "accounts")
+class Account {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    private String holderName;
+    private double balance;
+
+    public Account() {}
+    public Account(String holderName, double balance) {
+        this.holderName = holderName;
+        this.balance = balance;
+    }
+
+    public int getId() { return id; }
+    public String getHolderName() { return holderName; }
+    public double getBalance() { return balance; }
+    public void setBalance(double balance) { this.balance = balance; }
+
+    @Override
+    public String toString() {
+        return "Account [id=" + id + ", holder=" + holderName + ", balance=" + balance + "]";
+    }
+}
+
+@Entity
+@Table(name = "transactions")
+class TransactionRecord {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    private String fromAccount;
+    private String toAccount;
+    private double amount;
+
+    public TransactionRecord() {}
+    public TransactionRecord(String from, String to, double amount) {
+        this.fromAccount = from;
+        this.toAccount = to;
+        this.amount = amount;
+    }
+}
+
+// --- DAO LAYER ---
+@Repository
+class AccountDAO {
+    private final SessionFactory sessionFactory;
+
+    public AccountDAO(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
+
+    public Account getAccount(int id) {
+        return sessionFactory.getCurrentSession().get(Account.class, id);
+    }
+
+    public void updateAccount(Account account) {
+        sessionFactory.getCurrentSession().update(account);
+    }
+
+    public void saveTransaction(TransactionRecord tr) {
+        sessionFactory.getCurrentSession().save(tr);
+    }
+
+    public List<Account> getAllAccounts() {
+        return sessionFactory.getCurrentSession()
+                .createQuery("from Account", Account.class).list();
+    }
+}
+
+// --- SERVICE LAYER ---
+@Service
+class BankingService {
+    private final AccountDAO accountDAO;
+
+    public BankingService(AccountDAO accountDAO) {
+        this.accountDAO = accountDAO;
+    }
+
+    @Transactional
+    public void transferMoney(int fromId, int toId, double amount) {
+        Account fromAcc = accountDAO.getAccount(fromId);
+        Account toAcc = accountDAO.getAccount(toId);
+
+        if (fromAcc.getBalance() < amount) {
+            throw new RuntimeException("Insufficient balance in " + fromAcc.getHolderName());
+        }
+
+        fromAcc.setBalance(fromAcc.getBalance() - amount);
+        toAcc.setBalance(toAcc.getBalance() + amount);
+
+        accountDAO.updateAccount(fromAcc);
+        accountDAO.updateAccount(toAcc);
+
+        accountDAO.saveTransaction(new TransactionRecord(fromAcc.getHolderName(), toAcc.getHolderName(), amount));
+
+        System.out.println("✅ Transaction successful: " + amount + " transferred from " 
+                           + fromAcc.getHolderName() + " to " + toAcc.getHolderName());
+    }
+}
+
+// --- SPRING CONFIGURATION ---
+@Configuration
+@EnableTransactionManagement
+@ComponentScan(basePackages = "")
+class AppConfig {
+
+    @Bean
+    public SessionFactory sessionFactory() {
+        return new Configuration()
+                .configure("hibernate.cfg.xml")
+                .addAnnotatedClass(Account.class)
+                .addAnnotatedClass(TransactionRecord.class)
+                .buildSessionFactory();
+    }
+
+    @Bean
+    public HibernateTransactionManager transactionManager(SessionFactory factory) {
+        return new HibernateTransactionManager(factory);
+    }
+
+    @Bean
+    public AccountDAO accountDAO(SessionFactory factory) {
+        return new AccountDAO(factory);
+    }
+
+    @Bean
+    public BankingService bankingService(AccountDAO dao) {
+        return new BankingService(dao);
+    }
+}
+
+// --- MAIN CLASS ---
+public class Main {
+    public static void main(String[] args) {
+        AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(AppConfig.class);
+
+        BankingService service = context.getBean(BankingService.class);
+        SessionFactory factory = context.getBean(SessionFactory.class);
+
+        // Initialize sample accounts
+        Session session = factory.openSession();
+        Transaction tx = session.beginTransaction();
+        session.save(new Account("Alice", 5000));
+        session.save(new Account("Bob", 2000));
+        tx.commit();
+        session.close();
+
+        // Perform Transaction
+        try {
+            service.transferMoney(1, 2, 1000);
+        } catch (Exception e) {
+            System.out.println("❌ Transaction failed: " + e.getMessage());
+        }
+
+        // Display updated account balances
+        Session s = factory.openSession();
+        List<Account> list = s.createQuery("from Account", Account.class).list();
+        System.out.println("\n💰 Updated Accounts:");
+        for (Account a : list) System.out.println(a);
+        s.close();
+
+        context.close();
+    }
+}
