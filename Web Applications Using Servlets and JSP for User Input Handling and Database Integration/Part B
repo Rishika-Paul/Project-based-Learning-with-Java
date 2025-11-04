@@ -1,0 +1,99 @@
+// Main.java
+
+import java.sql.*;
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+
+        // Database connection details
+        String url = "jdbc:mysql://localhost:3306/company"; // your database
+        String user = "root";       // your MySQL username
+        String pass = "yourpassword"; // your MySQL password
+
+        Scanner sc = new Scanner(System.in);
+
+        try {
+            // Load JDBC driver
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            // Establish connection
+            Connection con = DriverManager.getConnection(url, user, pass);
+
+            while (true) {
+                System.out.println("\n=== Employee Menu ===");
+                System.out.println("1. View All Employees");
+                System.out.println("2. Search Employee by ID");
+                System.out.println("3. Exit");
+                System.out.print("Enter choice: ");
+                int choice = sc.nextInt();
+
+                if (choice == 1) {
+                    // Show all employees
+                    String query = "SELECT * FROM Employee";
+                    Statement st = con.createStatement();
+                    ResultSet rs = st.executeQuery(query);
+
+                    System.out.println("\nEmpID\tName\t\tSalary");
+                    System.out.println("----------------------------------");
+                    while (rs.next()) {
+                        System.out.println(rs.getInt("EmpID") + "\t" +
+                                rs.getString("Name") + "\t" +
+                                rs.getDouble("Salary"));
+                    }
+                    rs.close();
+                    st.close();
+
+                } else if (choice == 2) {
+                    // Search employee by ID
+                    System.out.print("Enter Employee ID: ");
+                    int empId = sc.nextInt();
+
+                    String query = "SELECT * FROM Employee WHERE EmpID = ?";
+                    PreparedStatement ps = con.prepareStatement(query);
+                    ps.setInt(1, empId);
+                    ResultSet rs = ps.executeQuery();
+
+                    if (rs.next()) {
+                        System.out.println("\nEmployee Found:");
+                        System.out.println("ID: " + rs.getInt("EmpID"));
+                        System.out.println("Name: " + rs.getString("Name"));
+                        System.out.println("Salary: " + rs.getDouble("Salary"));
+                    } else {
+                        System.out.println("No employee found with ID " + empId);
+                    }
+
+                    rs.close();
+                    ps.close();
+
+                } else if (choice == 3) {
+                    System.out.println("Exiting... Goodbye!");
+                    break;
+                } else {
+                    System.out.println("Invalid choice, try again.");
+                }
+            }
+
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        sc.close();
+    }
+}
+
+// DATABASE.sql
+
+CREATE DATABASE company;
+USE company;
+
+CREATE TABLE Employee (
+    EmpID INT PRIMARY KEY,
+    Name VARCHAR(50),
+    Salary DOUBLE
+);
+
+INSERT INTO Employee VALUES (101, 'Amit Sharma', 55000);
+INSERT INTO Employee VALUES (102, 'Priya Mehta', 62000);
+INSERT INTO Employee VALUES (103, 'Ravi Kumar', 48000);
