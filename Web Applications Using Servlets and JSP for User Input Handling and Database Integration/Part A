@@ -1,0 +1,61 @@
+//Main.java
+
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+
+        Scanner sc = new Scanner(System.in);
+
+        System.out.println("=== User Login System ===");
+
+        System.out.print("Enter username: ");
+        String username = sc.nextLine();
+
+        System.out.print("Enter password: ");
+        String password = sc.nextLine();
+
+        // Hardcoded credentials
+        String validUser = "admin";
+        String validPass = "12345";
+
+        if (username.equals(validUser) && password.equals(validPass)) {
+            System.out.println("Welcome, " + username + "! Login successful.");
+        } else {
+            System.out.println("Invalid username or password. Please try again.");
+        }
+
+        sc.close();
+    }
+}
+
+// db.sql
+
+CREATE DATABASE IF NOT EXISTS login_db;
+USE login_db;
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(50) NOT NULL
+);
+
+INSERT INTO users (username, password) VALUES
+('admin', '1234'),
+('user1', 'pass1'),
+('user2', 'pass2');
+
+
+//login.html
+<!DOCTYPE html>
+<html>
+<head><title>Login Page</title></head>
+<body>
+<h2>User Login</h2>
+<form action="LoginServlet" method="post">
+  Username: <input type="text" name="username"><br><br>
+  Password: <input type="password" name="password"><br><br>
+  <input type="submit" value="Login">
+</form>
+</body>
+</html>
