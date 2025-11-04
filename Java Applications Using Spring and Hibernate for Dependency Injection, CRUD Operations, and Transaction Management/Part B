@@ -1,0 +1,115 @@
+// Main.java
+import org.hibernate.*;
+import org.hibernate.cfg.Configuration;
+import jakarta.persistence.*;
+
+// --- Entity Class ---
+@Entity
+@Table(name = "students")
+class Student {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "email")
+    private String email;
+
+    public Student() {}
+
+    public Student(String name, String email) {
+        this.name = name;
+        this.email = email;
+    }
+
+    // Getters & Setters
+    public int getId() { return id; }
+    public String getName() { return name; }
+    public String getEmail() { return email; }
+    public void setName(String name) { this.name = name; }
+    public void setEmail(String email) { this.email = email; }
+
+    @Override
+    public String toString() {
+        return "Student [id=" + id + ", name=" + name + ", email=" + email + "]";
+    }
+}
+
+// --- Main Class for CRUD Operations ---
+public class Main {
+    public static void main(String[] args) {
+        // Configure Hibernate (hibernate.cfg.xml should exist in classpath)
+        SessionFactory factory = new Configuration()
+                .configure("hibernate.cfg.xml")
+                .addAnnotatedClass(Student.class)
+                .buildSessionFactory();
+
+        // --- Create Operation ---
+        createStudent(factory, "Rahul Sharma", "rahul@example.com");
+
+        // --- Read Operation ---
+        readStudents(factory);
+
+        // --- Update Operation ---
+        updateStudent(factory, 1, "Rahul Verma");
+
+        // --- Delete Operation ---
+        deleteStudent(factory, 1);
+
+        factory.close();
+    }
+
+    // Create
+    private static void createStudent(SessionFactory factory, String name, String email) {
+        Session session = factory.openSession();
+        Transaction tx = session.beginTransaction();
+        Student s1 = new Student(name, email);
+        session.save(s1);
+        tx.commit();
+        session.close();
+        System.out.println("Student added successfully!");
+    }
+
+    // Read
+    private static void readStudents(SessionFactory factory) {
+        Session session = factory.openSession();
+        Query<Student> query = session.createQuery("from Student", Student.class);
+        for (Student s : query.list()) {
+            System.out.println(s);
+        }
+        session.close();
+    }
+
+    // Update
+    private static void updateStudent(SessionFactory factory, int id, String newName) {
+        Session session = factory.openSession();
+        Transaction tx = session.beginTransaction();
+        Student s = session.get(Student.class, id);
+        if (s != null) {
+            s.setName(newName);
+            session.update(s);
+            System.out.println("Student updated: " + s);
+        } else {
+            System.out.println("Student not found!");
+        }
+        tx.commit();
+        session.close();
+    }
+
+    // Delete
+    private static void deleteStudent(SessionFactory factory, int id) {
+        Session session = factory.openSession();
+        Transaction tx = session.beginTransaction();
+        Student s = session.get(Student.class, id);
+        if (s != null) {
+            session.delete(s);
+            System.out.println("Student deleted with ID: " + id);
+        } else {
+            System.out.println("Student not found!");
+        }
+        tx.commit();
+        session.close();
+    }
+}
